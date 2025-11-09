@@ -51,5 +51,3 @@ jobs:
             pnpm build
 
             echo "✅ Despliegue completado."
-            echo "📊 Estado de los servicios:"
-            pm2 list || true
