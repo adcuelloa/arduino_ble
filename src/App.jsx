@@ -1,83 +1,94 @@
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { useBLE } from './hooks/useBLE';
+import { useWifi } from './hooks/useWifi';
 import { ConnectionPanel } from './components/ConnectionPanel';
 import { SpeedPanel } from './components/SpeedPanel';
 import { MovementPanel } from './components/MovementPanel';
 import { GripperPanel } from './components/GripperPanel';
 import { CommandMonitor } from './components/CommandMonitor';
+import { ModeSelector } from './components/ModeSelector';
+import { useKeyboardControls } from './hooks/useKeyboardControls';
 
 export default function App() {
+  // Estado para seleccionar modo de comunicación
+  const [commMode, setCommMode] = useState('wifi'); // 'ble' o 'wifi'
+
+  // Hooks de comunicación
+  const bleHook = useBLE();
+  const wifiHook = useWifi();
+
+  // Seleccionar el hook activo basado en el modo
+  const activeHook = commMode === 'ble' ? bleHook : wifiHook;
+
   const {
     connected,
     speedLevel,
     lastCommand,
     commandHistory,
     controlMode,
-    connectBle,
-    disconnectBle,
+    connectionStatus, // Solo para WiFi
+    connectBle, // Solo para BLE
+    connectWifi, // Solo para WiFi
+    disconnectBle, // Solo para BLE
+    disconnectWifi, // Solo para WiFi
     changeSpeed,
     handleKeyDown,
     handleKeyUp,
     handleButtonDown,
     handleButtonUp,
-    sendCommand,
+    enqueueCommand,
     resetAllKeys,
     toggleControlMode,
-  } = useBLE();
+  } = activeHook;
 
-  useEffect(() => {
-    // Manejadores de eventos de teclado
-    function onKeyDown(e) {
-      handleKeyDown(e);
-    }
-    function onKeyUp(e) {
-      handleKeyUp(e);
-    }
+  // Hook personalizado para manejar eventos de teclado
+  useKeyboardControls(handleKeyDown, handleKeyUp, resetAllKeys);
 
-    // Manejador para cuando se pierde el foco de la ventana/pestaña
-    // Esto previene que las teclas se queden "trabadas" si cambias de pestaña
-    function onBlur() {
-      console.log('⚠️ Ventana perdió el foco - reseteando teclas');
-      resetAllKeys();
+  const handleConnect = () => {
+    if (commMode === 'ble') {
+      connectBle();
+    } else {
+      connectWifi();
     }
+  };
 
-    // Manejador para detectar cuando el usuario suelta TODAS las teclas
-    // (por ejemplo, Alt+Tab para cambiar de ventana)
-    function onVisibilityChange() {
-      if (document.hidden) {
-        console.log('⚠️ Pestaña oculta - reseteando teclas');
-        resetAllKeys();
+  const handleDisconnect = () => {
+    if (commMode === 'ble') {
+      disconnectBle();
+    } else {
+      disconnectWifi();
+    }
+  };
+
+  const handleModeChange = (newMode) => {
+    // Desconectar el modo actual antes de cambiar
+    if (connected) {
+      if (commMode === 'ble') {
+        disconnectBle();
+      } else {
+        disconnectWifi();
       }
     }
-
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', onBlur);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', onBlur);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, [handleKeyDown, handleKeyUp, resetAllKeys]);
-
-  const handleStopClick = () => {
-    sendCommand('X');
+    setCommMode(newMode);
   };
 
   return (
     <div className="app-container">
-      {/* Control Remoto tipo físico de carro - 16:9 */}
       <div className="remote-control">
-        {/* HEADER: Conexión compacta + Velocidad + Monitor */}
+        {/* HEADER: Selector de Modo + Conexión + Velocidad + Monitor */}
         <div className="remote-header">
           <div className="header-left">
+            <ModeSelector
+              currentMode={commMode}
+              onModeChange={handleModeChange}
+              connected={connected}
+            />
             <ConnectionPanel
               connected={connected}
-              onConnect={connectBle}
-              onDisconnect={disconnectBle}
+              onConnect={handleConnect}
+              onDisconnect={handleDisconnect}
+              mode={commMode}
+              connectionStatus={commMode === 'wifi' ? connectionStatus : undefined}
             />
             <button
               onClick={toggleControlMode}
@@ -101,13 +112,12 @@ export default function App() {
 
         {/* BODY: Controles principales (D-Pad + Pinza) */}
         <div className="remote-body">
-          {/* D-Pad de Movimiento (W/A/S/D + STOP central) */}
           <div className="movement-section">
             <MovementPanel
               connected={connected}
               onButtonDown={(key) => {
                 if (key === 'x') {
-                  handleStopClick();
+                  enqueueCommand('X');
                 } else {
                   handleButtonDown(key);
                 }
@@ -116,9 +126,8 @@ export default function App() {
             />
           </div>
 
-          {/* Control de Pinza (Abrir/Cerrar) */}
           <div className="gripper-section">
-            <GripperPanel connected={connected} onSendCommand={sendCommand} />
+            <GripperPanel connected={connected} onSendCommand={enqueueCommand} />
           </div>
         </div>
       </div>

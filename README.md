@@ -1,4 +1,4 @@
-# Arduino BLT — Remote control web + ESP32
+# ESP32 Robot Car — Control Web Dual Mode (BLE + WiFi)
 
 [![React 18.3.1](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=white)](https://reactjs.org)
 [![Vite 5.4.21](https://img.shields.io/badge/Vite-5.4.21-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
@@ -6,48 +6,233 @@
 [![ESLint 9.39.1](https://img.shields.io/badge/ESLint-9.39.1-4B3263?logo=eslint&logoColor=white)](https://eslint.org)
 [![pnpm 10.20.0](https://img.shields.io/badge/pnpm-10.20.0-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
 [![React Icons 4.12.0](https://img.shields.io/badge/React%20Icons-4.12.0-61DAFB?logo=react&logoColor=white)](https://react-icons.github.io/react-icons/)
-[![ESP32](https://img.shields.io/badge/ESP32-supported-2A9D8F)](https://www.espressif.com/en/products/socs/esp32)
+[![ESP32-S3](https://img.shields.io/badge/ESP32--S3-supported-2A9D8F)](https://www.espressif.com/en/products/socs/esp32)
 
-Proyecto: interfaz web (React + Vite) para controlar un ESP32 mediante Web Bluetooth.
+**Proyecto:** Interfaz web (React + Vite) para controlar un robot ESP32-S3 mediante **Web Bluetooth (BLE)** o **WiFi (WebSocket)**.
 
-Resumen
--------
-Esta repo contiene:
-- Una app frontend React (Vite) que actúa como un control remoto físico para un robot con ESP32.
-- Un sketch de Arduino/ESP32 (`arduino.ino`) que expone un servicio BLE y recibe comandos simples (un carácter) para controlar motores y una pinza.
+---
 
-Stack
------
-- Frontend: React 18 + Vite
-- Linter / formateo: ESLint + Prettier
-- Comunicación BLE: Web Bluetooth API (desde el navegador)
-- Microcontrolador: ESP32 con la pila Bluedroid (Arduino sketch en `arduino.ino`)
+## 📋 Resumen
 
-Estructura relevante
---------------------
-- `src/` — código React
-  - `src/hooks/useBLE.js` — lógica de conexión y cola de comandos BLE
-  - `src/components/*` — UI (ConnectionPanel, MovementPanel, GripperPanel, SpeedPanel, CommandMonitor)
-  - `src/styles.css` — estilos principales (estética de control remoto físico)
-- `arduino.ino` — sketch del ESP32 (advertising name: `ADCA07`, SERVICE_UUID y CHARACTERISTIC_UUID definidos)
-- `.prettierignore` — evita que Prettier formatee archivos `.ino`
-- `.vscode/settings.json` *(opcional)* — recomendaciones para desactivar format-on-save para C++/INO en workspace
+Este repositorio contiene:
 
-BLE / Protocolo simple
-----------------------
-- Nombre del dispositivo BLE (advertised): `ADCA07` (el sketch usa `BLEDevice::init("ADCA07")`).
-- SERVICE_UUID: `4fafc201-1fb5-459e-8fcc-c5c9c331914b`
-- CHARACTERISTIC_UUID: `beb5483e-36e1-4688-b7f5-ea07361b26a8`
+- **Frontend React:** Control remoto visual estilo consola física para manejar un robot
+- **Dos modos de comunicación:**
+  - 🔵 **BLE (Bluetooth Low Energy)** - Conexión directa vía Web Bluetooth API
+  - 📡 **WiFi (WebSocket)** - Conexión vía red WiFi con latencia ultra-baja
+- **Firmware ESP32-S3:** Dos sketches de Arduino
+  - `arduino.ino` - Modo BLE (usando Bluedroid)
+  - `arduino_wifi.ino` - Modo WiFi Access Point + WebSocket
 
-Comandos: se envía un solo carácter (ASCII) por escritura BLE. Comandos implementados en el sketch:
-- `W` — adelante
-- `S` — atrás
-- `A` — izquierda
-- `D` — derecha
-- `X` — stop
-- `Q` — abrir pinza
-- `E` — cerrar pinza
-- `0`..`9` — niveles de velocidad (0 mínimo — 9 máximo)
+---
+
+## 🚀 Stack Tecnológico
+
+### Frontend
+- **React 18** con Vite (desarrollo rápido)
+- **Web Bluetooth API** para modo BLE
+- **WebSocket** para modo WiFi
+- **ESLint + Prettier** para calidad de código
+- **React Icons** para iconografía
+
+### Backend (ESP32-S3)
+- **BLE (Bluedroid)** - Bajo consumo, conexión directa
+- **WiFi Access Point** - Mayor alcance y estabilidad
+- **AsyncWebServer + AsyncTCP** - Servidor HTTP/WebSocket asíncrono
+- **ESP32Servo** - Control no bloqueante del servo de la pinza
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+├── src/
+│   ├── hooks/
+│   │   ├── useBLE.js              # Hook para modo Bluetooth
+│   │   ├── useWifi.js             # Hook para modo WiFi
+│   │   └── useKeyboardControls.js # Manejo de teclado
+│   ├── components/
+│   │   ├── ConnectionPanel.jsx    # Botón de conexión (dinámico BLE/WiFi)
+│   │   ├── ModeSelector.jsx       # Selector BLE vs WiFi
+│   │   ├── MovementPanel.jsx      # D-Pad de control (W/A/S/D)
+│   │   ├── GripperPanel.jsx       # Control de pinza (Q/E)
+│   │   ├── SpeedPanel.jsx         # Selector de velocidad (0-9)
+│   │   └── CommandMonitor.jsx     # Monitor de comandos enviados
+│   ├── App.jsx                    # Componente principal con selector de modo
+│   └── styles.css                 # Estilos globales
+├── arduino.ino                    # Firmware BLE
+├── arduino_wifi.ino               # Firmware WiFi + WebSocket
+└── README.md                      # Este archivo
+```
+
+---
+
+## 🔌 Modo 1: Conexión por Bluetooth (BLE)
+
+### 📥 Preparación del ESP32
+
+1. **Abrir `arduino.ino`** en Arduino IDE
+2. **Configurar parámetros** (si es necesario):
+   ```cpp
+   const bool SENSOR_ULTRASONICO_CONECTADO = false; // Cambiar a true si tienes sensor
+   ```
+3. **Compilar y subir** al ESP32-S3
+4. **Verificar en Serial Monitor** (115200 baud):
+   ```
+   BLE Advertising Started (Optimizado para baja latencia)
+   ```
+
+### 🌐 Conectar desde el Navegador
+
+1. **Abrir la aplicación web** en un navegador compatible:
+   - ✅ Chrome/Edge en Windows/Mac/Linux/Android
+   - ✅ Chrome en ChromeOS
+   - ❌ Safari (no soporta Web Bluetooth)
+   - ❌ Firefox (no soporta Web Bluetooth nativamente)
+
+2. **Seleccionar modo BLE:**
+   - Click en el botón **🔵 BLE** en la parte superior izquierda
+
+3. **Hacer click en el botón de conexión:**
+   - Aparece un ícono de **Bluetooth** (azul cuando está desconectado)
+   - Click en el botón redondo
+
+4. **Seleccionar el dispositivo:**
+   - Se abre un diálogo del navegador
+   - Buscar **"ADCA07"** en la lista
+   - Click en **"Emparejar"** o **"Connect"**
+
+5. **Verificar conexión:**
+   - El LED del botón cambia a **verde brillante** ✅
+   - En la consola del navegador verás: `✅ BLE conectado`
+   - En el Serial Monitor del ESP32: `--- BLE CONECTADO ---`
+
+### 📡 Especificaciones BLE
+
+- **Nombre advertido:** `ADCA07`
+- **SERVICE_UUID:** `4fafc201-1fb5-459e-8fcc-c5c9c331914b`
+- **CHARACTERISTIC_UUID (WRITE):** `beb5483e-36e1-4688-b7f5-ea07361b26a8`
+- **NOTIFY_UUID (ACK):** `12345678-1234-5678-1234-56789abcdef0`
+- **MTU:** 517 bytes (máximo para ESP32)
+- **Intervalo de conexión:** 7.5-22.5ms (optimizado para baja latencia)
+
+---
+
+## 📡 Modo 2: Conexión por WiFi (WebSocket)
+
+### 📥 Preparación del ESP32
+
+1. **Instalar librerías necesarias** (Arduino IDE):
+   ```
+   Sketch → Include Library → Manage Libraries
+   ```
+   - Buscar e instalar: **AsyncTCP**
+   - Buscar e instalar: **ESPAsyncWebServer**
+
+2. **Abrir `arduino_wifi.ino`** en Arduino IDE
+
+3. **Configurar credenciales WiFi** (líneas 10-13):
+   ```cpp
+   const char* AP_SSID = "ESP32_ROBOT_CAR";     // Nombre de tu red WiFi
+   const char* AP_PASSWORD = "robot12345";      // Contraseña (mín. 8 caracteres)
+   const IPAddress AP_IP(192, 168, 4, 1);       // IP fija del ESP32
+   ```
+
+4. **Compilar y subir** al ESP32-S3
+
+5. **Verificar en Serial Monitor** (115200 baud):
+   ```
+   === ESP32 Robot Car - Modo WiFi ===
+   Access Point iniciado
+   SSID: ESP32_ROBOT_CAR
+   Password: robot12345
+   IP: 192.168.4.1
+   Servidor HTTP iniciado en http://192.168.4.1
+   WebSocket disponible en ws://192.168.4.1/ws
+   ```
+
+### 🌐 Conectar desde el Navegador
+
+#### Paso 1: Conectar tu dispositivo a la red WiFi del ESP32
+
+1. **En tu teléfono/computadora:**
+   - Ir a **Configuración de WiFi**
+   - Buscar la red **"ESP32_ROBOT_CAR"**
+   - Conectarse usando la contraseña: **robot12345**
+   - Esperar a que se conecte (puede tomar 5-10 segundos)
+
+2. **Verificar conexión WiFi:**
+   - Tu dispositivo debe decir "Conectado sin Internet" (esto es normal)
+   - La IP de tu dispositivo será algo como `192.168.4.X`
+
+#### Paso 2: Abrir la aplicación web
+
+3. **Abrir el navegador** y cargar la aplicación React:
+   ```
+   http://localhost:5173
+   ```
+   O la URL donde esté desplegada la app
+
+4. **Seleccionar modo WiFi:**
+   - Click en el botón **📡 WiFi** en la parte superior izquierda
+   - El botón debe quedar resaltado en azul
+
+5. **Hacer click en el botón de conexión:**
+   - Aparece un ícono de **WiFi** (rojo cuando está desconectado)
+   - Click en el botón redondo
+   - El LED cambiará a **amarillo pulsante** (conectando)
+
+6. **Verificar conexión:**
+   - El LED del botón cambia a **verde brillante** ✅
+   - En la consola del navegador verás:
+     ```
+     🔌 Conectando a ws://192.168.4.1/ws...
+     ✅ WebSocket conectado
+     📨 Mensaje recibido: CONNECTED
+     ```
+   - En el Serial Monitor del ESP32:
+     ```
+     WebSocket cliente #1 conectado desde 192.168.4.2
+     ```
+
+### 🔍 Verificación y Troubleshooting WiFi
+
+**Si no puedes conectarte:**
+
+1. **Verificar que estás conectado a la red WiFi del ESP32**
+   ```
+   ping 192.168.4.1
+   ```
+   Debería responder
+
+2. **Probar el servidor HTTP** (opcional):
+   - Abrir en el navegador: `http://192.168.4.1`
+   - Deberías ver una página simple con status del WebSocket
+
+3. **Ver logs en consola del navegador:**
+   - Presiona F12 → pestaña Console
+   - Busca errores de WebSocket
+
+4. **Verificar Serial Monitor del ESP32:**
+   - Debe mostrar "Access Point iniciado"
+   - Si no, verifica que compilaste y subiste el sketch correcto
+
+### 📊 Comparación BLE vs WiFi
+
+| Característica | BLE (Bluetooth) | WiFi (WebSocket) |
+|----------------|-----------------|------------------|
+| **Alcance** | ~10 metros | ~30-50 metros (depende del ESP32) |
+| **Latencia** | 7.5-22.5ms | 1-5ms |
+| **Throughput** | Limitado (MTU 517) | Alto (sin límite práctico) |
+| **Configuración** | Plug & Play | Conectar a red WiFi primero |
+| **Compatibilidad** | Solo Chrome/Edge | Todos los navegadores |
+| **Consumo** | Bajo | Medio-Alto |
+| **Estabilidad** | Media | Alta |
+| **Mejor para** | Conexiones rápidas, móviles | Control preciso, largo tiempo |
+
+---
+
+## 🎮 Modos de Control
 
 Notas importantes sobre robustez
 --------------------------------
