@@ -13,7 +13,7 @@ import { useWifi } from '../hooks/useWifi';
 import { useKeyboardControls } from '../hooks/useKeyboardControls';
 
 import { MdScreenRotation } from 'react-icons/md';
-import Ges2lIcon from '../components/icons/Ges2lIcon';
+import GameIcon from '../components/icons/GameIcon';
 
 export default function ControlPage() {
   const [commMode, setCommMode] = useState('wifi');
@@ -87,7 +87,7 @@ export default function ControlPage() {
       <div className="orientation-warning">
         <div className="orientation-content">
           <div className="orientation-content-icons">
-            <Ges2lIcon color="#fff" size={64} />
+            <GameIcon stroke="#fff" size={64} />
             <MdScreenRotation className="rotate-icon" size={64} />
           </div>
           <h2>Gira tu dispositivo</h2>
