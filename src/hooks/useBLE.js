@@ -28,6 +28,7 @@ export function useBLE() {
   // Constantes de velocidad
   const MAX_SPEED = 9;
   const MIN_SPEED = 0;
+  const INTER_COMMAND_DELAY = 30; // 30ms entre comandos para no saturar buffer GATT
 
   // Función helper para resetear todas las teclas y enviar STOP
   const resetAllKeys = useCallback(() => {
@@ -93,11 +94,16 @@ export function useBLE() {
     } finally {
       writeInProgress.current = false;
 
-      // Procesar el comando pendiente si existe
+      // Procesar el comando pendiente si existe, con un pequeño delay
+      // para no saturar el buffer GATT del ESP32
       if (pendingCommand.current) {
         const next = pendingCommand.current;
         pendingCommand.current = null;
-        sendCommand(next);
+
+        // Delay de 30ms para darle tiempo al ESP32 de procesar
+        setTimeout(() => {
+          sendCommand(next);
+        }, INTER_COMMAND_DELAY);
       }
     }
   }, []);
